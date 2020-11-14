@@ -1,2 +1,2 @@
-# DL_VL
-Übungszettel für DL_VL
+# Deep Learning Lecture
+Übungszettel für DL_Kurs

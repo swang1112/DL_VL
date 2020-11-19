@@ -1,2 +1,2 @@
-# Deep Learning Lecture
-Übungszettel für DL_Kurs
+# Deep Learning Lecture 
+Exercises sheet of deep learning lectures

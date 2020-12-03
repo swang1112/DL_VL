@@ -1,5 +1,17 @@
-import os
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.optim.lr_scheduler import ReduceLROnPlateau, ExponentialLR, StepLR
+import torchvision
+from torchvision import datasets, transforms, models
+import fastprogress
+import numpy as np
+import pandas as pd
+import seaborn as sn
+import matplotlib.pyplot as plt
+import time
+
 
 def get_device(cuda_preference=True):
     """Gets pytorch device object. If cuda_preference=True and 
@@ -22,71 +34,7 @@ def get_device(cuda_preference=True):
     device_name = torch.cuda.get_device_name(device) if use_cuda else 'cpu'
     print('Using device', device_name)
     return device
-
-def grab_data(data_dir, num_cpus=1):
-    """Downloads CIFAR10 train and test set, stores them on disk, computes mean 
-        and standard deviation per channel of trainset, normalizes the train set
-        accordingly.
-
-    Args:
-        data_dir (str): Directory to store data
-        num_cpus (int, optional): Number of cpus that should be used to 
-            preprocess data. Defaults to 1.
-
-    Returns:
-        CIFAR10, CIFAR10, float, float: Returns trainset and testset as
-            torchvision CIFAR10 dataset objects. Returns mean and standard
-            deviation used for normalization.
-    """
-    trainset = torchvision.datasets.CIFAR10(data_dir, train=True, download=True, 
-                                            transform=torchvision.transforms.ToTensor())
-
-    # Get normalization transform
-    num_samples = trainset.data.shape[0]
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=num_samples, 
-                                              num_workers=num_cpus)
-    imgs, _ = next(iter(trainloader))
-    dataset_mean = torch.mean(imgs, dim=(0,2,3))
-    dataset_std = torch.std(imgs, dim=(0,2,3))
-
-    normalized_transform = torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(dataset_mean, dataset_std)
-    ])
-
-    # Load again, now normalized
-    trainset = torchvision.datasets.CIFAR10(data_dir, download=True, train=True, 
-                                            transform=normalized_transform) 
-    # Apply the same transform, computed from the train-set, to the test-set
-    # so both have a similar distribution. We do not normalize the test-set directly,
-    # since we are not allowed to perform any computations with it. (We only use it
-    # for reporting results in the very end)
-    testset = torchvision.datasets.CIFAR10(data_dir, download=True, train=False, 
-                                           transform=normalized_transform)
-
-    return trainset, testset, dataset_mean, dataset_std
-        
-        
-def generate_train_val_data_split(trainset, split_seed=42, val_frac=0.2):
-    """Splits train dataset into train and validation dataset.
-
-    Args:
-        trainset (CIFAR10): CIFAR10 trainset object
-        split_seed (int, optional): Seed used to randomly assign data
-            points to the validation set. Defaults to 42.
-        val_frac (float, optional): Fraction of training set that should be 
-            split into validation set. Defaults to 0.2.
-
-    Returns:
-        CIFAR10, CIFAR10: CIFAR10 trainset and validation set.
-    """
-    num_val_samples = np.ceil(val_frac * trainset.data.shape[0]).astype(int)
-    num_train_samples = trainset.data.shape[0] - num_val_samples
-    trainset, valset = torch.utils.data.random_split(trainset, 
-                                  (num_train_samples, num_val_samples), 
-                                  generator=torch.Generator().manual_seed(split_seed))
-    return trainset, valset
-    
+   
     
 def grab_data(data_dir, num_cpus=1):
     """Downloads CIFAR10 train and test set, stores them on disk, computes mean 
@@ -183,7 +131,7 @@ def init_data_loaders(trainset, valset, testset, batch_size=1024, num_cpus=1):
                                                   num_workers=num_cpus)
     return trainloader, valloader, testloader
 
-def imshow(img, mean, std):
+def imshow(img, mean, std, batch_size, num_img = 16, M = 4, N = 4):
     """Undo normalization using mean and standarddeviation and show image.
 
     Args:
@@ -192,6 +140,10 @@ def imshow(img, mean, std):
             normalize the dataset.
         std (np.array shape (3,)): Vector of standard deviations per channel 
             used to normalize the dataset.
+        batch_size (int): batch size. 
+        num_img (int): number of images to show.
+        M (int): subplot W.
+        N (int): subplot L.
     """
     ####################
     ## YOUR CODE HERE ##
@@ -201,7 +153,7 @@ def imshow(img, mean, std):
     imgs, labels = img
 
     plt.figure(figsize=(12,12))
-    for i in range(16):
+    for i in range(num_img):
       # grab an img randomly
       foo = np.random.randint(0, batch_size)
       img_tmp = imgs[foo]
@@ -213,9 +165,9 @@ def imshow(img, mean, std):
       img_for_plot = np.transpose(img_reverse, (1,2,0))
  
 
-      plt.subplot(4,4,i+1)
+      plt.subplot(M,N,i+1)
       plt.imshow(img_for_plot)
-      plt.title(list(CIFAR_classes.keys())[labels[foo].item()])
+      plt.title(labels[foo].item())
       plt.axis('off')
 
     #print(img_reverse.shape)
@@ -509,7 +461,7 @@ def plot(title, label, train_results, val_results, yscale='linear', save_path=No
     epoch_array = np.arange(len(train_results)) + 1
     train_label, val_label = "Training "+label.lower(), "Validation "+label.lower()
     
-    sns.set(style='ticks')
+    sn.set(style='ticks')
 
     plt.plot(epoch_array, train_results, epoch_array, val_results, linestyle='dashed', marker='o')
     legend = ['Train results', 'Validation results']
@@ -529,7 +481,7 @@ def plot(title, label, train_results, val_results, yscale='linear', save_path=No
     plt.yscale(yscale)
     plt.title(title)
     
-    sns.despine(trim=True, offset=5)
+    sn.despine(trim=True, offset=5)
     plt.title(title, fontsize=15)
     if save_path:
         plt.savefig(str(save_path), bbox_inches='tight')

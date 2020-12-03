@@ -535,7 +535,7 @@ def print_results(losses, accs, label):
     """
     losses_min = min(losses)
     losses_min_epoch = np.argmin(losses) + 1
-    accs_max = max(acccs)
+    accs_max = max(accs)
     accs_max_epoch = np.argmax(accs) + 1
     print(f'{label} set: \n minimum of loss: \t {losses_min:.2f} \t at epoch: \t {losses_min_epoch} \n maximum of accuracy: \t {accs_max:.2f} \t at epoch: \t {accs_max_epoch}')
 

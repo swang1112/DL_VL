@@ -523,3 +523,34 @@ def test(test_loader, model, device):
 
     # Return the mean loss, the accuracy and the confusion matrix
     return accuracy(epoch_correct, epoch_total), confusion_matrix
+
+def print_results(losses, accs, label):
+    """Print the best classification results over all epochs.
+
+    Args:
+        losses (list): values of losses.
+        accs (list): values of classification accuracies.
+        lable (char): training or validation set.
+
+    """
+    losses_min = min(losses)
+    losses_min_epoch = np.argmin(losses) + 1
+    accs_max = max(acccs)
+    accs_max_epoch = np.argmax(accs) + 1
+    print(f'{label} set: \n minimum of loss: \t {losses_min:.2f} \t at epoch: \t {losses_min_epoch} \n maximum of accuracy: \t {accs_max:.2f} \t at epoch: \t {accs_max_epoch}')
+
+def save_all(dir, model, optimizer, num_epochs, other_stuffs):
+    torch.save({
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'num_epochs': num_epochs,
+                'other_stuffs': other_stuffs
+    }, dir)
+
+def load_all(dir, model, optimizer):
+    checkpoint = torch.load(dir)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    num_epochs = checkpoint['num_epochs']
+    other_stuffs = checkpoint['other_stuffs']
+    return model, optimizer, num_epochs, other_stuffs

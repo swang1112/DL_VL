@@ -374,7 +374,8 @@ def validate(dataloader, model, loss_fn, device, master_bar):
 
 
 def run_training(model, optimizer, loss_function, device, num_epochs, 
-                train_dataloader, val_dataloader, early_stopper=None, verbose=False):
+                train_dataloader, val_dataloader, early_stopper=None,
+                scheduler=None, verbose=False):
     """Run model training.
 
     Args:
@@ -389,6 +390,8 @@ def run_training(model, optimizer, loss_function, device, num_epochs,
             validation data
         early_stopper (EarlyStopper, optional): If passed, model will be trained
             with early stopping. Defaults to None.
+        scheduler (torch.optim.lr_scheduler, optional): If passed, learning rates
+            are adjusted based on the number of epochs or validation measurements.
         verbose (bool, optional): Print information about model training. 
             Defaults to False.
 
@@ -409,6 +412,10 @@ def run_training(model, optimizer, loss_function, device, num_epochs,
         epoch_val_loss, epoch_val_acc, confusion_matrix = validate(val_dataloader, 
                                                                    model, loss_function, 
                                                                    device, master_bar)
+
+        # Learning rate scheduler
+        if scheduler:
+            scheduler.step()
 
         # Save loss and acc for plotting
         train_losses.append(epoch_train_loss)
